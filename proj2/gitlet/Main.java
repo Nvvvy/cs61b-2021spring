@@ -1,7 +1,10 @@
 package gitlet;
 
+import java.util.HashSet;
+import java.util.Set;
+
 /** Driver class for Gitlet, a subset of the Git version-control system.
- *  @author TODO
+ *  @author Nvvvy
  */
 public class Main {
 
@@ -9,16 +12,58 @@ public class Main {
      *  <COMMAND> <OPERAND1> <OPERAND2> ... 
      */
     public static void main(String[] args) {
-        // TODO: what if args is empty?
+        if (args.length == 0) {
+            System.out.println("Please enter a command.");
+            System.exit(0);
+        }
+
         String firstArg = args[0];
         switch(firstArg) {
             case "init":
                 // TODO: handle the `init` command
+                // init repo, maybe with Repo.init
+                validateArgs("init", args, 1);
+                Repository.init();
                 break;
             case "add":
                 // TODO: handle the `add [filename]` command
+                validateArgs("add", args, 2);
+                Repository.add(args[1]);
                 break;
             // TODO: FILL THE REST IN
+            case "commit":
+                validateArgs("commit", args, 2);
+                Repository.commit(args[1]);
         }
     }
+
+
+    /**
+     * Checks the number of arguments versus the expected number,
+     * prints an error message if any of these conditions is met.
+     *
+     * @param cmd Name of command you are validating
+     * @param args Argument array from command line
+     * @param n Number of expected arguments
+     */
+    public static void validateArgs(String cmd, String[] args, int n) {
+        HashSet<String> validCmd = new HashSet<>(Set.of("init", "add", "commit", "rm", "log",
+                "global-log", "find", "status", "checkout", "branch", "rm-branch", "reset", "merge"));
+
+        if (!validCmd.contains(cmd)) {
+            System.out.println("No command with that name exists.");
+            System.exit(0);
+        }
+
+        if (args.length != n) {
+            System.out.println("Incorrect operands.");
+            System.exit(0);
+        }
+
+        if (Repository.inGitWorkingDirectory(Repository.CWD)) {
+            System.out.println("Not in an initialized Gitlet directory.");
+            System.exit(0);
+        }
+    }
+
 }
