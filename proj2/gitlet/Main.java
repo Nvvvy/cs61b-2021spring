@@ -34,6 +34,9 @@ public class Main {
             case "commit":
                 validateArgs("commit", args, 2);
                 Repository.commit(args[1]);
+            case "rm":
+                validateArgs("rm", args, 2);
+                Repository.rm(args[1]);
         }
     }
 
@@ -56,11 +59,15 @@ public class Main {
         }
 
         if (args.length != n) {
-            System.out.println("Incorrect operands.");
+            if (cmd.equals("commit") && args.length == 1) {
+                System.out.println("Please enter a commit message.");
+            } else {
+                System.out.println("Incorrect operands.");
+            }
             System.exit(0);
         }
 
-        if (Repository.inGitWorkingDirectory(Repository.CWD)) {
+        if (!cmd.equals("init") && !Repository.inGitWorkingDirectory(Repository.CWD)) {
             System.out.println("Not in an initialized Gitlet directory.");
             System.exit(0);
         }
