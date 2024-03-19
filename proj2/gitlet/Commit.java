@@ -20,11 +20,11 @@ import static gitlet.Utils.*;
 public class Commit implements Serializable {
 
     /** The message of this Commit. */
-    private final String message;
+    final String message;
     /** The reference to the parent commit, at most 2 ref */
-    private final String[] parentId;
+    final String[] parentId;
     /** the timeStamp of commit with a yy-mm-dd hh-mm-ss format */
-    private final String timestamp;
+    final String timestamp;
     /** The sha-1 code of the commit */
     final String blobId;
     /** a mapping of file names to blob references */
@@ -34,21 +34,22 @@ public class Commit implements Serializable {
     /* TODO： Stage1: init, add, commit, checkout -- [file name], checkout [commit id] -- [file name], log */
     public Commit(String message, Commit parent, Date date, Map<String, String> fileForAdd) {
         this.message = message;
-        this.parentId = new String[2];
-        this.parentId[0] = parent != null ? parent.blobId : "";
-        this.parentId[1] = "";
+        parentId = new String[2];
+        parentId[0] = parent != null ? parent.blobId : "";
+        parentId[1] = "";
 
         // convert Date to string
-        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-        this.timestamp = sdf.format(date);
+//        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+//        this.timestamp = sdf.format(date);
+        timestamp = date.toString();
 
         /* Each commit is identified by its SHA-1 id,
         which must include the file (blob) references of its files,
         parent reference, log message, and commit time. */
-        this.blobId = Utils.sha1(message, parentId[0], timestamp); // TODO: figure out how sha-1 generates
+        blobId = Utils.sha1(message, parentId[0], timestamp); // TODO: figure out how sha-1 generates
 
         // update the files mapping between file name and blobId
-        this.fileToBlob = parent != null ? updateFileRef(parent, fileForAdd) : new TreeMap<>();
+        fileToBlob = parent != null ? updateFileRef(parent, fileForAdd) : new TreeMap<>();
         saveCommit(this);
     }
 
@@ -85,18 +86,33 @@ public class Commit implements Serializable {
     }
 
     /**
-     * Returns parent commits of this commit
+     * Returns first parent commits of this commit
      * @return parent commits
      */
-    List<Commit> getParents() {
+    List<Commit> firstParent() {
         List<Commit> parents = new ArrayList<>();
-        for (String blobId : parentId) {
-            if (blobId.isEmpty()) {
-                continue;
-            }
-            parents.add(loadCommit(blobId));
+        Commit c = this;
+        while (!c.parentId[0].isEmpty()) {
+            parents.add(c);
+            c = loadCommit(c.parentId[0]);
         }
+        parents.add(c);
         return parents;
+    }
+
+    /**
+     * Prints the basic info of commit for log command
+     */
+    void printCommit() {
+        System.out.println("===");
+        System.out.println("commit " + blobId);
+        // TODO: deal with Merged commit: display two parents
+        if (!parentId[1].isEmpty()) {
+            System.out.println("Merge: " + parentId[0].substring(0, 7)
+                    + " " + parentId[1].substring(0, 7));
+        }
+        System.out.println("Date: " + timestamp);
+        System.out.println(message + "\n");
     }
 
 }

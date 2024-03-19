@@ -34,9 +34,26 @@ public class Main {
             case "commit":
                 validateArgs("commit", args, 2);
                 Repository.commit(args[1]);
+                break;
             case "rm":
                 validateArgs("rm", args, 2);
                 Repository.rm(args[1]);
+                break;
+            case "log":
+                validateArgs("log", args, 1);
+                Repository.log();
+                break;
+            case "global-log":
+                validateArgs("global-log", args, 1);
+                Repository.globalLog();
+                break;
+            case "find":
+                validateArgs("find", args, 2);
+                Repository.find(args[1]);
+                break;
+            case "status":
+                validateArgs("status", args, 1);
+                break;
         }
     }
 

@@ -32,6 +32,8 @@ public class Repository implements Serializable {
     // TODO: save the files' snapshots, which should be a mapping between the sha-1 and file name
     private Map<String, String> forAddition;
 
+    private Map<String, String> forRemoval;
+
     /** The mapping which uses the branch name as key and commit sha-1 id as value */
     private Map<String, String> HEAD;
 
@@ -204,10 +206,12 @@ public class Repository implements Serializable {
             c.fileToBlob.remove(fileName);
             File discarded = join(CWD, fileName);
             restrictedDelete(discarded);
+            repo.forRemoval.put(fileName, c.blobId);
         } else if (repo.forAddition.containsKey(fileName)) {
             repo.forAddition.remove(fileName);
             File untracked = join(GITLET_DIR, fileName);
             untracked.delete();
+            repo.forRemoval.put(fileName, c.blobId);
         } else {
             // file is neither staged nor tracked by the head commit
             System.out.println("No reason to remove the file.");
@@ -215,8 +219,76 @@ public class Repository implements Serializable {
         }
     }
 
+    /**
+     * Prints the commit history of the current branch's head
+     */
     static void log() {
         Repository repo = repoFromFile();
-        Commit c = lastCommit(repo);
+        Commit last = lastCommit(repo);
+        List<Commit> history = last.firstParent();
+        for (Commit c : history) {
+            c.printCommit();
+        }
     }
+
+    /**
+     * Prints information about all commits ever made
+     */
+    static void globalLog() {
+        List<String> commits = plainFilenamesIn(COMMIT_DIR);
+        for (String commitId : commits) {
+            Commit c = Commit.loadCommit(commitId);
+            c.printCommit();
+        }
+    }
+
+    /**
+     * Prints out the ids of all commits that have the given commit message, one per line.
+     * @param m target commit message
+     */
+    static void find(String m) {
+        List<String> commits = plainFilenamesIn(COMMIT_DIR);
+        boolean found = false;
+        for (String commitId : commits) {
+            Commit c = Commit.loadCommit(commitId);
+            if (c.message.equals(m)) {
+                found = true;
+                System.out.println(commitId);
+            }
+        }
+
+        if (!found) {
+            System.out.println("Found no commit with that message.");
+        }
+    }
+
+    /**
+     * Prints the repo status
+     */
+    static void status() {
+        Repository repo = repoFromFile();
+
+        System.out.println("=== Branches ===");
+        for (String branch : repo.branches) {
+            if (branch.equals(repo.currentBranch)) {
+                branch = "*" + branch;
+            }
+            System.out.println(branch);
+        }
+
+        System.out.println("=== Staged Files ===");
+        for (String fileName : repo.forAddition.keySet()) {
+            System.out.println(fileName);
+        }
+
+        System.out.println("=== Removed Files ===");
+        for (String fileName : repo.forRemoval.keySet()) {
+            System.out.println(fileName);
+        }
+
+        // TODO: Modifications Not Staged For Commit
+        // TODO: Untracked Files
+    }
+
+
 }
