@@ -2,7 +2,6 @@ package gitlet;
 
 import java.io.File;
 import java.io.Serializable;
-import java.text.SimpleDateFormat;
 import java.util.*;
 
 import static gitlet.Utils.*;
@@ -31,25 +30,17 @@ public class Commit implements Serializable {
     Map<String, String> fileToBlob;
 
 
-    /* TODO： Stage1: init, add, commit, checkout -- [file name], checkout [commit id] -- [file name], log */
-    public Commit(String message, Commit parent, Date date, Map<String, String> fileForAdd) {
-        this.message = message;
+    public Commit(String m, Commit p0, Commit p1, Date date, Map<String, String> fileForAdd, Map<String, String> fileForRm) {
+        message = m;
         parentId = new String[2];
-        parentId[0] = parent != null ? parent.blobId : "";
-        parentId[1] = "";
+        parentId[0] = p0 != null ? p0.blobId : "";
+        parentId[1] = p1 != null ? p1.blobId : "";
 
-        // convert Date to string
-//        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-//        this.timestamp = sdf.format(date);
         timestamp = date.toString();
-
-        /* Each commit is identified by its SHA-1 id,
-        which must include the file (blob) references of its files,
-        parent reference, log message, and commit time. */
-        blobId = Utils.sha1(message, parentId[0], timestamp); // TODO: figure out how sha-1 generates
+        blobId = Utils.sha1(message, parentId[0] + parentId[1], timestamp);
 
         // update the files mapping between file name and blobId
-        fileToBlob = parent != null ? updateFileRef(parent, fileForAdd) : new TreeMap<>();
+        fileToBlob = p0 != null ? updateFileRef(p0, fileForAdd, fileForRm) : new TreeMap<>();
         saveCommit(this);
     }
 
@@ -58,7 +49,6 @@ public class Commit implements Serializable {
      * Save a commit under the .gitlet directory
      */
     static void saveCommit(Commit c) {
-        // TODO: should evey commit be under a different directory?
         File f = join(Repository.COMMIT_DIR, c.blobId);
         writeObject(f, c);
     }
@@ -73,15 +63,30 @@ public class Commit implements Serializable {
     }
 
     /**
+     * Returns false if there is no corresponding commit with a given blob id
+     * @param commitId blob id of target commit
+     */
+    static boolean readCommitSuccess(String commitId) {
+        try {
+            File commitBlob = join(Repository.COMMIT_DIR, commitId);
+            readObject(commitBlob, Commit.class);
+            return true;
+        } catch (IllegalArgumentException e) {
+            return false;
+        }
+    }
+
+    /**
      * Save the snapshots of files of a given commit and the staging area
-     *
      * @param parent parent Commit
      * @param fileForAdd a mapping between staged file name and blobId
+     * @param fileForRm a mapping between unstaged file name and blobId
      */
-    static Map<String, String> updateFileRef(Commit parent, Map<String, String> fileForAdd) {
+    static Map<String, String> updateFileRef(Commit parent, Map<String, String> fileForAdd, Map<String, String> fileForRm) {
         Map<String, String> newFileRef = new TreeMap<>();
         newFileRef.putAll(parent.fileToBlob);
         newFileRef.putAll(fileForAdd);
+        newFileRef.keySet().removeAll(fileForRm.keySet());
         return newFileRef;
     }
 

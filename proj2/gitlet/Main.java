@@ -1,5 +1,6 @@
 package gitlet;
 
+import java.io.File;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -20,17 +21,13 @@ public class Main {
         String firstArg = args[0];
         switch(firstArg) {
             case "init":
-                // TODO: handle the `init` command
-                // init repo, maybe with Repo.init
                 validateArgs("init", args, 1);
                 Repository.init();
                 break;
             case "add":
-                // TODO: handle the `add [filename]` command
                 validateArgs("add", args, 2);
                 Repository.add(args[1]);
                 break;
-            // TODO: FILL THE REST IN
             case "commit":
                 validateArgs("commit", args, 2);
                 Repository.commit(args[1]);
@@ -53,6 +50,26 @@ public class Main {
                 break;
             case "status":
                 validateArgs("status", args, 1);
+                Repository.status();
+                break;
+            case "checkout":
+                Repository.checkout(args);
+                break;
+            case "branch":
+                validateArgs("branch", args, 2);
+                Repository.branch(args[1]);
+                break;
+            case "rm-branch":
+                validateArgs("rm-branch", args, 2);
+                Repository.rmBranch(args[1]);
+                break;
+            case "reset":
+                validateArgs("reset", args, 2);
+                Repository.reset(args[1]);
+                break;
+            case "merge":
+                validateArgs("merge", args, 2);
+                Repository.merge(args[1]);
                 break;
         }
     }
@@ -84,7 +101,7 @@ public class Main {
             System.exit(0);
         }
 
-        if (!cmd.equals("init") && !Repository.inGitWorkingDirectory(Repository.CWD)) {
+        if (!cmd.equals("init") && !Repository.inGitWorkingDirectory()) {
             System.out.println("Not in an initialized Gitlet directory.");
             System.exit(0);
         }
