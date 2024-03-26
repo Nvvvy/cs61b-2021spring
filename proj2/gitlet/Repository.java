@@ -46,6 +46,19 @@ public class Repository implements Serializable {
     }
 
     /**
+     * @return active branch name
+     */
+    String activeBranch() {
+        String activeBranch = "master";
+        for (String branch : forRemoval.keySet()) {
+            if (forRemoval.get(branch).equals(HEAD)) {
+                activeBranch = branch;
+            }
+        }
+        return activeBranch;
+    }
+
+    /**
      * Untracked files are files in CWD that were not tracked by given commit
      * and are not in staging area.
      * @param c given commit
@@ -196,7 +209,7 @@ public class Repository implements Serializable {
     static void log() {
         Repository repo = repoFromFile();
         Commit last = headCommit(repo);
-        List<Commit> history = last.firstParent();
+        List<Commit> history = last.firstAncestor();
         for (Commit c : history) {
             c.printCommit();
         }
@@ -293,7 +306,7 @@ public class Repository implements Serializable {
      * @param blobId commit blob id
      */
     private static void verifyCommit(String blobId) {
-        if (!Commit.readCommitSuccess(blobId)) {
+        if (!readCommitSuccess(blobId)) {
             System.out.println("No commit with that id exists.");
             System.exit(0);
         }
@@ -423,16 +436,75 @@ public class Repository implements Serializable {
 
     /**
      * A helper method returns the latest common ancestor of a and b on commit tree
-     * @param repo the Repo object
+     *
      * @param a blob id of commit
      * @param b blob id of another commit
      * @return blob id of split point
      */
-    private static String splitPoint(Repository repo, String a, String b) {
-        Commit x = loadCommit(a);
-        Commit y = loadCommit(b);
+    private static Set<Commit> splitPoint(String a, String b) {
+        Commit A = loadCommit(a);
+        Commit B = loadCommit(b);
+        Set<Commit> groupA = new HashSet<>();
+        Set<Commit> groupB = new HashSet<>();
+        groupA.add(A);
+        groupB.add(B);
+        Deque<Commit> queueA = new ArrayDeque<>();
+        Deque<Commit> queueB = new ArrayDeque<>();
+        queueA.push(A);
+        queueB.push(B);
+        while (!queueA.isEmpty() || !queueB.isEmpty()) {
+            Set<Commit> intersection = new HashSet<>(groupA);
+            intersection.retainAll(groupB);
+            if (!intersection.isEmpty()) {
+                return intersection;
+            }
+            update(queueA, groupA);
+            update(queueB, groupB);
+        }
+        return groupA;
+    }
 
-        return "";
+    private static void update(Deque<Commit> q, Set<Commit> s) {
+        for (Commit c : q) {
+            q.pollFirst();
+            List<Commit> parents = c.parents();
+            q.addAll(parents);
+            s.addAll(parents);
+        }
+    }
+
+    private static void checkBeforeMerge(Repository repo, String branch) {
+        if (!repo.refs.containsKey(branch)) {
+            System.out.println("A branch with that name does not exist.");
+            System.exit(0);
+        }
+        if (repo.refs.get(branch).equals(repo.HEAD)) {
+            System.out.println("Cannot merge a branch with itself.");
+            System.exit(0);
+        }
+        if (!repo.forAddition.isEmpty() || !repo.forRemoval.isEmpty()) {
+            System.out.println("You have uncommitted changes.");
+            System.exit(0);
+        }
+        Set<Commit> splitPoint = splitPoint(repo.HEAD, repo.refs.get(branch));
+        Commit head = loadCommit(repo.HEAD);
+        Commit other = loadCommit(repo.refs.get(branch));
+
+        // TODO: an untracked file in the current commit would be overwritten or deleted by the merge
+        if (!repo.untrakedFiles(head).isEmpty()) {
+            System.out.println("There is an untracked file in the way; delete it, or add and commit it first.");
+            System.exit(0);
+        }
+        if (splitPoint.contains(other)) {
+            System.out.println("Given branch is an ancestor of the current branch.");
+            System.exit(0);
+        }
+        // special case 2: the split point is the current branch
+        if (splitPoint.contains(head)) {
+            System.out.println("Current branch fast-forwarded.");
+            checkoutBranch(repo, branch);
+            System.exit(0);
+        }
     }
 
     /**
@@ -440,47 +512,85 @@ public class Repository implements Serializable {
      * @param branch source branch name
      */
     static void merge(String branch) {
-        // TODO: search for the split point of active branch and given branch
-        // special case 1: the split point (latest common ancestor) is the same commit as the given branch: do nothing
         Repository repo = repoFromFile();
+        checkBeforeMerge(repo, branch);
+
         String given = repo.refs.get(branch);
-        String splitPoint = splitPoint(repo, repo.HEAD, given);
-        if (splitPoint.equals(given)) {
-            System.out.println("Given branch is an ancestor of the current branch.");
-            System.exit(0);
+        Set<Commit> splitPoint = splitPoint(repo.HEAD, given);
+        Commit head = loadCommit(repo.HEAD);
+        Commit other = loadCommit(given);
+
+        Commit commonAncestor = splitPoint.iterator().next();
+        Set<String> allFiles = new TreeSet<>();
+        allFiles.addAll(commonAncestor.fileToBlob.keySet());
+        allFiles.addAll(head.fileToBlob.keySet());
+        allFiles.addAll(other.fileToBlob.keySet());
+        boolean conflict = false;
+
+        for (String fileName : allFiles) {
+            int status = compareFiles(fileName, head, other, commonAncestor);
+            File curr = head.fileToBlob.containsKey(fileName) ? join(BLOB_DIR, head.fileToBlob.get(fileName)) : null;
+            File another = other.fileToBlob.containsKey(fileName) ? join(BLOB_DIR, other.fileToBlob.get(fileName)) : null;
+            switch (status) {
+                case 3:
+                    rm(fileName);
+                    break;
+                case 2:
+                    conflict = true;
+                    mergeContent(fileName, curr, another);
+                    break;
+                case 1:
+                    checkoutFile(fileName, other);
+                    break;
+                case 0:
+                    break;
+            }
         }
-        // special case 2: the split point is the current branch
-        if (splitPoint.equals(repo.HEAD)) {
-            System.out.println("Current branch fast-forwarded.");
-            checkoutBranch(repo, branch);
-            System.exit(0);
-        }
 
-        /*
-        Structure
-        set common = set(source) && set(current)
-        set ancestor = set(split point)
-        */
-        // deal with merge, base version: file of split point
-        // 1. modified in Other but not in HEAD -> Other
-
-        // 2. modified in HEAD, not in Other -> HEAD
-
-        // 3. both modified, but with same content or both removed -> keep still, do not delete file
-
-        // 4. not in split point but only in current branch -> file remains
-
-        // 5. in split point but only in given branch -> checkout and stage
-
-        // 6. in split point, unmodified in the current branch, and absent in the given branch -> remove and untrack
-
-        // 7. present at the split point, unmodified in the given branch, and absent in the current branch -> remain absent
-
-        // 8. both modified (in conflict) -> keep both content in different sections of the same file, stage
-
-        // TODO: merge automatically commits with the log message Merged [given branch name] into [current branch name].
-        // TODO: prints: Encountered a merge conflict. if there is a conflict
         // new commit has two parents: first-current branch, second-given branch
+        if (conflict) {
+            System.out.println("Encountered a merge conflict.");
+        }
+        String activeBranch = repo.activeBranch();
+        Commit newHead = new Commit("Merged" + branch + "into" + activeBranch,
+                head, other, new Date(), repo.forAddition, repo.forRemoval);
+        repo.HEAD = newHead.blobId;
+        repo.refs.put(activeBranch, newHead.blobId);
+        repo.forAddition.clear();
+        repo.forRemoval.clear();
     }
 
+    /**
+     * Merge two conflict files' content with a single file, then creates a file in CWD
+     * @param current file tracked by HEAD, could be null if deleted
+     * @param other file tracked by another branch to be merged, could be null
+     */
+    private static void mergeContent(String fileName, File current, File other) {
+        File merged = join(CWD, fileName);
+        // deal with the deleted file: use empty string as content
+        String contentA = current != null ? readContentsAsString(current) + "\n" : "";
+        String contentB = other != null? readContentsAsString(other) + "\n" : "";
+        String mergedContent = "<<<<<<< HEAD\n" + contentA + "=======\n" + contentB + ">>>>>>>\n";
+        writeContents(merged, mergedContent);
+    }
+
+    private static int compareFiles(String fileName, Commit head, Commit given, Commit ancestor) {
+        String curr = head.fileToBlob.getOrDefault(fileName, "");
+        String other = given.fileToBlob.getOrDefault(fileName, "");
+        String base = ancestor.fileToBlob.getOrDefault(fileName, "");
+
+        // 0 - do nothing: no difference or same modification or only in current branch
+        // 1 - check out file from given branch: only modified in given branch
+        // 2 - merge content: conflict / modified in the different way
+        // 3 - rm from HEAD: unmodified in HEAD, absent in given branch
+
+        if (curr.equals(base) && !base.isEmpty() && other.isEmpty()) {
+            return 3;
+        } else if (!base.isEmpty() && !curr.equals(base)) {
+            return 2;
+        } else if (base.equals(other) && !base.equals(curr)) {
+            return 1;
+        }
+        return 0;
+    }
 }

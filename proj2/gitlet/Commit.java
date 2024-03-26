@@ -58,6 +58,7 @@ public class Commit implements Serializable {
      * @param blobId the id of commit
      */
     static Commit loadCommit(String blobId) {
+        if (blobId.isEmpty()) return null;
         File commitFile = join(Repository.COMMIT_DIR, blobId);
         return readObject(commitFile, Commit.class);
     }
@@ -94,7 +95,7 @@ public class Commit implements Serializable {
      * Returns first parent commits of this commit
      * @return parent commits
      */
-    List<Commit> firstParent() {
+    List<Commit> firstAncestor() {
         List<Commit> parents = new ArrayList<>();
         Commit c = this;
         while (!c.parentId[0].isEmpty()) {
@@ -102,6 +103,20 @@ public class Commit implements Serializable {
             c = loadCommit(c.parentId[0]);
         }
         parents.add(c);
+        return parents;
+    }
+
+    /**
+     * @return 2 parents of this commit
+     */
+    List<Commit> parents() {
+        List<Commit> parents = new ArrayList<>();
+        if (!parentId[0].isEmpty()) {
+            parents.add(loadCommit(parentId[0]));
+        }
+        if (!parentId[1].isEmpty()) {
+            parents.add(loadCommit(parentId[1]));
+        }
         return parents;
     }
 
@@ -118,6 +133,16 @@ public class Commit implements Serializable {
         }
         System.out.println("Date: " + timestamp);
         System.out.println(message + "\n");
+    }
+
+    @Override
+    public int hashCode() {
+        return blobId.hashCode();
+    }
+
+    @Override
+    public boolean equals(Object obj) {
+        return obj instanceof Commit && blobId.equals(((Commit) obj).blobId);
     }
 
 }
