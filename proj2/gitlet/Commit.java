@@ -7,26 +7,35 @@ import java.util.*;
 import static gitlet.Utils.*;
 
 /**
- *  Represents a gitlet commit object.
- *  All tracked files will be listed in a one-dimensional list.
- *  In other words, there is only one "flat" directory of plain files for each repo.
- *  A commit consist of a log message, timestamp, a mapping of file names to blob references,
- *  a parent reference, and (for merges) a second parent reference.
+ * Represents a gitlet commit object.
+ * All tracked files will be listed in a one-dimensional list.
+ * In other words, there is only one "flat" directory of plain files for each repo.
+ * A commit consist of a log message, timestamp, a mapping of file names to blob references,
+ * a parent reference, and (for merges) a second parent reference.
  *
- *
- *  @author Nvvvy
+ * @author Nvvvy
  */
 public class Commit implements Serializable {
 
-    /** The message of this Commit. */
+    /**
+     * The message of this Commit.
+     */
     final String message;
-    /** The reference to the parent commit, at most 2 ref */
+    /**
+     * The reference to the parent commit, at most 2 ref
+     */
     final String[] parentId;
-    /** the timeStamp of commit with a yy-mm-dd hh-mm-ss format */
+    /**
+     * the timeStamp of commit with a yy-mm-dd hh-mm-ss format
+     */
     final String timestamp;
-    /** The sha-1 code of the commit */
+    /**
+     * The sha-1 code of the commit
+     */
     final String blobId;
-    /** a mapping of file names to blob references */
+    /**
+     * a mapping of file names to blob references
+     */
     Map<String, String> fileToBlob;
 
 
@@ -55,6 +64,7 @@ public class Commit implements Serializable {
 
     /**
      * Reads the given file and returns a Commit obj if the file refers to a commit
+     *
      * @param blobId the id of commit
      */
     static Commit loadCommit(String blobId) {
@@ -65,6 +75,7 @@ public class Commit implements Serializable {
 
     /**
      * Returns false if there is no corresponding commit with a given blob id
+     *
      * @param commitId blob id of target commit
      */
     static boolean readCommitSuccess(String commitId) {
@@ -79,9 +90,10 @@ public class Commit implements Serializable {
 
     /**
      * Save the snapshots of files of a given commit and the staging area
-     * @param parent parent Commit
+     *
+     * @param parent     parent Commit
      * @param fileForAdd a mapping between staged file name and blobId
-     * @param fileForRm a mapping between unstaged file name and blobId
+     * @param fileForRm  a mapping between unstaged file name and blobId
      */
     static Map<String, String> updateFileRef(Commit parent, Map<String, String> fileForAdd, Map<String, String> fileForRm) {
         Map<String, String> newFileRef = new TreeMap<>();
@@ -93,6 +105,7 @@ public class Commit implements Serializable {
 
     /**
      * Returns first parent commits of this commit
+     *
      * @return parent commits
      */
     List<Commit> firstAncestor() {

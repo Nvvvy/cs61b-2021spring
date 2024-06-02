@@ -1,10 +1,10 @@
 # Gitlet Design Document
 
-**Name**:
+**Name**: Nvvvy
 
 ## Classes and Data Structures
 
-### Class 1
+### Blob
 
 #### Fields
 
@@ -12,7 +12,7 @@
 2. Field 2
 
 
-### Class 2
+### Commit
 
 #### Fields
 
@@ -23,4 +23,6 @@
 ## Algorithms
 
 ## Persistence
+
+
 

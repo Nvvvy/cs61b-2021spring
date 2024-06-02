@@ -4,13 +4,16 @@ import java.io.File;
 import java.util.HashSet;
 import java.util.Set;
 
-/** Driver class for Gitlet, a subset of the Git version-control system.
- *  @author Nvvvy
+/**
+ * Driver class for Gitlet, a subset of the Git version-control system.
+ *
+ * @author Nvvvy
  */
 public class Main {
 
-    /** Usage: java gitlet.Main ARGS, where ARGS contains
-     *  <COMMAND> <OPERAND1> <OPERAND2> ... 
+    /**
+     * Usage: java gitlet.Main ARGS, where ARGS contains
+     * <COMMAND> <OPERAND1> <OPERAND2> ...
      */
     public static void main(String[] args) {
         if (args.length == 0) {
@@ -19,7 +22,7 @@ public class Main {
         }
 
         String firstArg = args[0];
-        switch(firstArg) {
+        switch (firstArg) {
             case "init":
                 validateArgs("init", args, 1);
                 Repository.init();
@@ -79,9 +82,9 @@ public class Main {
      * Checks the number of arguments versus the expected number,
      * prints an error message if any of these conditions is met.
      *
-     * @param cmd Name of command you are validating
+     * @param cmd  Name of command you are validating
      * @param args Argument array from command line
-     * @param n Number of expected arguments
+     * @param n    Number of expected arguments
      */
     public static void validateArgs(String cmd, String[] args, int n) {
         HashSet<String> validCmd = new HashSet<>(Set.of("init", "add", "commit", "rm", "log",
@@ -106,5 +109,6 @@ public class Main {
             System.exit(0);
         }
     }
+
 
 }

@@ -8,29 +8,45 @@ import static gitlet.Utils.*;
 import static gitlet.Commit.*;
 
 
-
 /**
- *  A gitlet repo deals with plain text files, subdirectory and non-text file not included
- *  @author Nvvvy
+ * A gitlet repo deals with plain text files, subdirectory and non-text file not included
+ *
+ * @author Nvvvy
  */
 public class Repository implements Serializable {
 
-    /** The current working directory. */
+    /**
+     * The current working directory.
+     */
     public static final File CWD = new File(System.getProperty("user.dir"));
-    /** The .gitlet directory. */
+    /**
+     * The .gitlet directory.
+     */
     public static final File GITLET_DIR = join(CWD, ".gitlet");
-    /** The directory which saves all serialized Commit objects i.e.commit records */
+    /**
+     * The directory which saves all serialized Commit objects i.e.commit records
+     */
     static final File COMMIT_DIR = join(GITLET_DIR, "commit");
-    /** The directory which blob files (use blob id as name, not extension name) */
+    /**
+     * The directory which blob files (use blob id as name, not extension name)
+     */
     static final File BLOB_DIR = join(GITLET_DIR, "blob");
 
-    /** The mapping for file name and blob id of files staged for addition */
+    /**
+     * The mapping for file name and blob id of files staged for addition
+     */
     private final Map<String, String> forAddition;
-    /** The mapping for file name and blob id of files staged for removal */
+    /**
+     * The mapping for file name and blob id of files staged for removal
+     */
     private final Map<String, String> forRemoval;
-    /** The mapping which uses the branch name as key and commit blob id as value */
+    /**
+     * The mapping which uses the branch name as key and commit blob id as value
+     */
     private final Map<String, String> refs;
-    /** The 40-bits blob id of the last commit of the active branch */
+    /**
+     * The 40-bits blob id of the last commit of the active branch
+     */
     private String HEAD;
 
 
@@ -61,6 +77,7 @@ public class Repository implements Serializable {
     /**
      * Untracked files are files in CWD that were not tracked by given commit
      * and are not in staging area.
+     *
      * @param c given commit
      * @return A set of untracked files in CWD.
      */
@@ -73,13 +90,17 @@ public class Repository implements Serializable {
         return all;
     }
 
-    /** Reads the repo object from .gitlet dir */
+    /**
+     * Reads the repo object from .gitlet dir
+     */
     static Repository repoFromFile() {
         File repoConfig = new File(GITLET_DIR, "repoConfig.txt");
         return readObject(repoConfig, Repository.class);
     }
 
-    /** Save repo info in the repoConfig.txt under .gitlet dir */
+    /**
+     * Save repo info in the repoConfig.txt under .gitlet dir
+     */
     static void saveRepo(Repository repo) {
         File repoInfo = new File(GITLET_DIR, "repoConfig.txt");
         writeObject(repoInfo, repo);
@@ -96,6 +117,7 @@ public class Repository implements Serializable {
 
     /**
      * Returns the last commit of current branch
+     *
      * @param repo Repository
      * @return last commit of current branch
      */
@@ -147,7 +169,7 @@ public class Repository implements Serializable {
         }
         // Staging an already-staged file overwrites the previous entry in the staging area with the new contents
         repo.forAddition.put(fileName, fileId);
-        File latestCopy = join(BLOB_DIR,  fileId);
+        File latestCopy = join(BLOB_DIR, fileId);
         writeContents(latestCopy, latestContent);
 
         saveRepo(repo);
@@ -158,6 +180,7 @@ public class Repository implements Serializable {
      * Saves a snapshot of tracked files in the current commit and staging area,
      * then creates a new commit
      * Ignores everything (missing file, file change...) outside the .gitlet directory.
+     *
      * @param message commit log message in command
      */
     static void commit(String message) {
@@ -174,7 +197,7 @@ public class Repository implements Serializable {
         // staging area is cleared after a commit.
         repo.forAddition.clear();
         // The commit just made becomes HEAD
-        repo.HEAD= newCommit.blobId;
+        repo.HEAD = newCommit.blobId;
 
         saveRepo(repo);
     }
@@ -182,6 +205,7 @@ public class Repository implements Serializable {
     /**
      * Unstage the file if it is currently in staging area,
      * remove the file from the working directory if the file is tracked in the current commit
+     *
      * @param fileName the name of file to be removed from repo working directory
      */
     static void rm(String fileName) {
@@ -228,6 +252,7 @@ public class Repository implements Serializable {
 
     /**
      * Prints out the ids of all commits that have the given commit message, one per line.
+     *
      * @param m target commit message
      */
     static void find(String m) {
@@ -280,6 +305,7 @@ public class Repository implements Serializable {
 
     /**
      * 3 possible cases for checkout command
+     *
      * @param args all command input
      */
     static void checkout(String[] args) {
@@ -303,6 +329,7 @@ public class Repository implements Serializable {
 
     /**
      * Exits the program if the given commit blob id is not valid
+     *
      * @param blobId commit blob id
      */
     private static void verifyCommit(String blobId) {
@@ -314,8 +341,9 @@ public class Repository implements Serializable {
 
     /**
      * Exits the program if given file name is not tracked by given commit
+     *
      * @param fileName name of file
-     * @param c Commit obj
+     * @param c        Commit obj
      */
     private static void verifyFile(String fileName, Commit c) {
         if (!c.fileToBlob.containsKey(fileName)) {
@@ -328,8 +356,9 @@ public class Repository implements Serializable {
      * Takes the version of the file as it exists in the commit with the given id,
      * and puts it in the working directory, overwriting the version of the file
      * that’s already there if there is one.
+     *
      * @param fileName name of target file
-     * @param c target commit
+     * @param c        target commit
      */
     static void checkoutFile(String fileName, Commit c) {
         verifyFile(fileName, c);
@@ -345,6 +374,7 @@ public class Repository implements Serializable {
     /**
      * Takes all files in the commit at the head of the given branch,
      * overwriting the versions of the files in the working directory.
+     *
      * @param branch branch name
      */
     static void checkoutBranch(Repository repo, String branch) {
@@ -362,7 +392,8 @@ public class Repository implements Serializable {
      * Checks out all the files tracked by the given commit.
      * Removes tracked files that are not present in that commit.
      * Also moves the current branch’s head to that commit node
-     * @param repo target repo
+     *
+     * @param repo     target repo
      * @param commitId given commit blob id
      */
     private static void checkoutCommit(Repository repo, String commitId) {
@@ -395,6 +426,7 @@ public class Repository implements Serializable {
      * Checks out all the files tracked by the given commit.
      * Removes tracked files that are not present in that commit.
      * Also moves the current branch’s head to that commit node.
+     *
      * @param commitId target commit sha-1 blobId
      */
     static void reset(String commitId) {
@@ -406,6 +438,7 @@ public class Repository implements Serializable {
 
     /**
      * Creates a new branch with the given name, and points it at the current head commit
+     *
      * @param branch new branch name, which is a name for a reference to a commit
      */
     static void branch(String branch) {
@@ -420,7 +453,8 @@ public class Repository implements Serializable {
 
     /**
      * Deletes the branch with the given name
-     * @param branch the name of branch pointe
+     *
+     * @param branch the name of branch
      */
     static void rmBranch(String branch) {
         Repository repo = repoFromFile();
@@ -509,6 +543,7 @@ public class Repository implements Serializable {
 
     /**
      * Merges files from the given branch into the current branch.
+     *
      * @param branch source branch name
      */
     static void merge(String branch) {
@@ -562,14 +597,15 @@ public class Repository implements Serializable {
 
     /**
      * Merge two conflict files' content with a single file, then creates a file in CWD
+     *
      * @param current file tracked by HEAD, could be null if deleted
-     * @param other file tracked by another branch to be merged, could be null
+     * @param other   file tracked by another branch to be merged, could be null
      */
     private static void mergeContent(String fileName, File current, File other) {
         File merged = join(CWD, fileName);
         // deal with the deleted file: use empty string as content
         String contentA = current != null ? readContentsAsString(current) + "\n" : "";
-        String contentB = other != null? readContentsAsString(other) + "\n" : "";
+        String contentB = other != null ? readContentsAsString(other) + "\n" : "";
         String mergedContent = "<<<<<<< HEAD\n" + contentA + "=======\n" + contentB + ">>>>>>>\n";
         writeContents(merged, mergedContent);
     }
