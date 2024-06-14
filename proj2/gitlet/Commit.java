@@ -31,7 +31,6 @@ public class Commit implements Serializable {
     List<String> parents;
     final String id;
 
-    /* TODO: fill in the rest of this class. */
 
     public Commit(String msg, Date date, List<String> p, Map<String, String> files) {
         message = msg;

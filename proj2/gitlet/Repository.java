@@ -9,8 +9,6 @@ import static gitlet.Commit.*;
 import static gitlet.MyUtils.*;
 import static gitlet.Main.quitWithMsg;
 
-// TODO: any imports you need here
-
 /**
  * Represents a gitlet repository.
  *
@@ -125,7 +123,7 @@ public class Repository {
         }
 
         stage.forAddition.put(fileName, contentSha1);
-        stage.forRemoval.remove(fileName); // TODO: check rm spec
+        stage.forRemoval.remove(fileName);
         Blob.saveBlob(toBeAdded); //put blob into OBJ_DIR
         Index.saveIndex(stage);
     }
@@ -169,8 +167,6 @@ public class Repository {
 
         Commit newHead = new Commit(message, new Date(), parents, blobs);
         saveCommit(newHead);
-        // TODO: check rm spec about the tracking list
-
         // clear staging area after commit & update commit graph
         stage.clear();
         stage.headBlobs = blobs;
@@ -402,7 +398,6 @@ public class Repository {
             }
         }
 
-        // TODO: make a new commit
         commit(message, stage, curr, given);
         if (conflict) {
             System.out.println("Encountered a merge conflict.");
