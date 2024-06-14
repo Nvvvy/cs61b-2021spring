@@ -31,6 +31,7 @@ public class Commit implements Serializable {
     List<String> parents;
     final String id;
 
+    /* TODO: fill in the rest of this class. */
 
     public Commit(String msg, Date date, List<String> p, Map<String, String> files) {
         message = msg;
@@ -53,7 +54,7 @@ public class Commit implements Serializable {
     public String log() {
         String head = "===\n";
         String blobId = "commit " + id + "\n";
-        String merge = parents.get(1).isEmpty() ? "" : parents.get(0).substring(0, 7) +
+        String merge = parents.get(1).isEmpty() ? "" : "Merge: " + parents.get(0).substring(0, 7) +
                 " " + parents.get(1).substring(0, 7) + "\n";
         String date = "Date: " + timestamp + "\n";
         return head + blobId + merge + date + message + "\n";
@@ -64,9 +65,6 @@ public class Commit implements Serializable {
         return log();
     }
 
-    public static void printCommit(Commit c) {
-        System.out.print(c.log());
-    }
 
     public Commit getParent(int i) {
         if (parents.get(i).isEmpty()) {
@@ -75,15 +73,6 @@ public class Commit implements Serializable {
         return readObject(join(OBJ_DIR, parents.get(i)), Commit.class);
     }
 
-    @Override
-    public boolean equals(Object c) {
-        return c.hashCode() == this.hashCode();
-    }
-
-    @Override
-    public int hashCode() {
-        return Integer.parseInt(this.id);
-    }
 
     public String getFileSha1(String fileName) {
         return blobs.get(fileName);

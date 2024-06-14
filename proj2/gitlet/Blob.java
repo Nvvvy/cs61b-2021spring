@@ -28,7 +28,7 @@ public class Blob {
 
     static void saveBlob(Blob b) {
         File target = join(OBJ_DIR, b.sha1);
-        writeObject(target, Blob.class);
+        writeContents(target, b.content);
     }
 
     public boolean isUpdated(String name) {

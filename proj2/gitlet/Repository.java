@@ -9,6 +9,8 @@ import static gitlet.Commit.*;
 import static gitlet.MyUtils.*;
 import static gitlet.Main.quitWithMsg;
 
+// TODO: any imports you need here
+
 /**
  * Represents a gitlet repository.
  *
@@ -111,20 +113,17 @@ public class Repository {
             // If the current working version of the file is identical to the version in the current commit,
             // remove it from the staging area if it is already there
             stage.forAddition.remove(fileName);
-            System.exit(0);
+        } else {
+            stage.forAddition.put(fileName, contentSha1);
         }
 
         String lastStagedSha1 = stage.forAddition.get(fileName);
-        if (lastStagedSha1 != null) {
-            if (contentSha1.equals(lastStagedSha1)) {
-                System.exit(0);
-            }
+        if (lastStagedSha1 != null && !contentSha1.equals(lastStagedSha1)) {
             safeDelObj(join(OBJ_DIR, lastStagedSha1));
         }
 
-        stage.forAddition.put(fileName, contentSha1);
-        stage.forRemoval.remove(fileName);
-        Blob.saveBlob(toBeAdded); //put blob into OBJ_DIR
+        stage.forRemoval.remove(fileName); // TODO: check rm spec
+        Blob.saveBlob(toBeAdded);
         Index.saveIndex(stage);
     }
 
@@ -163,10 +162,14 @@ public class Repository {
         List<String> parents = new ArrayList<>(List.of(parent1.id));
         if (parent2 != null) {
             parents.add(parent2.id);
+        } else {
+            parents.add("");
         }
 
         Commit newHead = new Commit(message, new Date(), parents, blobs);
         saveCommit(newHead);
+        // TODO: check rm spec about the tracking list
+
         // clear staging area after commit & update commit graph
         stage.clear();
         stage.headBlobs = blobs;
@@ -179,7 +182,7 @@ public class Repository {
 
     public static void rm(String file) {
         Index stage = Index.readIndex();
-        if (!stage.headBlobs.containsKey(file) || stage.forAddition.remove(file) == null) {
+        if (!stage.headBlobs.containsKey(file) && stage.forAddition.remove(file) == null) {
             quitWithMsg("No reason to remove the file.");
         }
 
@@ -198,23 +201,27 @@ public class Repository {
 
     public static void globalLog() {
         Index stage = Index.readIndex();
-        stage.commitGraph.keySet().stream().map(Commit::readCommit).forEach(Commit::printCommit);
+        stage.commitGraph.keySet().stream().map(Commit::readCommit).forEach(System.out::println);
     }
 
     public static void find(String message) {
         Index stage = Index.readIndex();
-        Set<Commit> filtered = stage.commitGraph.keySet().stream().map(Commit::readCommit).
-                filter(msg -> msg.equals(message)).collect(Collectors.toSet());
+        List<Commit> filtered = new ArrayList<>();
+        for (String id : stage.commitGraph.keySet()) {
+            Commit c = readCommit(id);
+            if (c.message.equals(message)) {
+                filtered.add(c);
+            }
+        }
         if (filtered.isEmpty()) {
             quitWithMsg("Found no commit with that message.");
         }
         filtered.forEach(commit -> System.out.println(commit.id));
     }
 
-    public static Set<String> untrackedFiles() {
-        Index stage = Index.readIndex();
-        return plainFilenamesIn(CWD).stream().filter(file -> !stage.headBlobs.containsKey(file) ||
-                        !stage.forRemoval.contains(file) ||
+    public static Set<String> untrackedFiles(Index stage) {
+        return plainFilenamesIn(CWD).stream().filter(file -> !stage.headBlobs.containsKey(file) &&
+                        !stage.forRemoval.contains(file) &&
                         !stage.forAddition.containsKey(file)).
                 collect(Collectors.toSet());
     }
@@ -222,7 +229,6 @@ public class Repository {
 
     public static void status() {
         Index stage = Index.readIndex();
-        Set<String> allFiles = new HashSet<>(plainFilenamesIn(CWD));
 
         System.out.println("=== Branches ===");
         plainFilenamesIn(HEADS_DIR).stream().
@@ -239,7 +245,7 @@ public class Repository {
         System.out.println("\n=== Modifications Not Staged For Commit ===");
 
         System.out.println("\n=== Untracked Files ===");
-        untrackedFiles().forEach(System.out::println);
+        untrackedFiles(stage).forEach(System.out::println);
     }
 
     private static Commit getBranchHead(String branch) {
@@ -248,9 +254,15 @@ public class Repository {
     }
 
     private static String getFullCommitId(String id) {
-        String sha1 = plainFilenamesIn(OBJ_DIR).stream().
-                filter(blobId -> blobId.startsWith(id)).limit(1).toString();
-        if (sha1 == null) {
+        String sha1 = "";
+        for (String commitId : plainFilenamesIn(OBJ_DIR)) {
+            if (commitId.startsWith(id)) {
+                sha1 = commitId;
+                break;
+            }
+        }
+
+        if (sha1.isEmpty()) {
             quitWithMsg("No commit with that id exists.");
         }
         return sha1;
@@ -282,28 +294,32 @@ public class Repository {
         }
 
         Commit targetCommit = getBranchHead(branch);
-        checkoutCommit(targetCommit);
+        checkoutCommit(targetCommit, Index.readIndex());
 
         // update HEAD
         writeContents(HEAD, "refs/heads/" + branch);
     }
 
-
-    private static void checkoutCommit(Commit c) {
-        if (new HashSet<>(c.blobs.keySet()).retainAll(untrackedFiles())) {
+    private static void checkOverWrite(Commit target, Index stage) {
+        Set<String> overWrittenFiles = new HashSet<>(target.blobs.keySet());
+        overWrittenFiles.retainAll(untrackedFiles(stage));
+        if (!overWrittenFiles.isEmpty()) {
             // a working file is untracked in the current branch and would be overwritten by the checkout
             quitWithMsg("There is an untracked file in the way;" +
                     " delete it, or add and commit it first.");
         }
+    }
 
+
+    private static void checkoutCommit(Commit target, Index stage) {
+        checkOverWrite(target, stage);
         // checkout files
-        Index stage = Index.readIndex();
-        c.blobs.forEach((fileName, sha1) -> checkoutFile(c, fileName));
+        target.blobs.forEach((fileName, sha1) -> checkoutFile(target, fileName));
         plainFilenamesIn(CWD).stream().filter(file -> stage.headBlobs.containsKey(file) &&
-                !c.blobs.containsKey(file)).forEach(Utils::restrictedDelete);
+                !target.blobs.containsKey(file)).forEach(Utils::restrictedDelete);
 
         // update stage
-        stage.headBlobs = c.blobs;
+        stage.headBlobs = target.blobs;
         stage.clear();
         Index.saveIndex(stage);
     }
@@ -332,7 +348,7 @@ public class Repository {
 
     public static void reset(String id) {
         String sha1 = getFullCommitId(id);
-        checkoutCommit(readCommit(sha1));
+        checkoutCommit(readCommit(sha1), Index.readIndex());
 
         // moves the current branch’s head to that commit node
         writeContents(join(OBJ_DIR, activeBranch()), sha1);
@@ -355,16 +371,18 @@ public class Repository {
         Commit currentHead = headCommit(), branchHead = getBranchHead(branch);
         Commit mergeBase = splitPoint(stage.commitGraph, currentHead.id, branchHead.id);
 
-        if (branchHead.equals(mergeBase)) {
+        if (branchHead.id.equals(mergeBase.id)) {
             // the split point is the same commit as the given branch
             quitWithMsg("Given branch is an ancestor of the current branch.");
-        } else if (currentHead.equals(mergeBase)) {
+        } else if (currentHead.id.equals(mergeBase.id)) {
             // the split point is the current branch, then check out the given branch
-            checkoutCommit(branchHead);
+            checkoutCommit(branchHead, stage);
             quitWithMsg("Current branch fast-forwarded.");
         }
 
         String message = "Merged " + "branch" + " into" + activeBranch();
+        // TODO: check overWrite files
+        checkOverWrite(branchHead, stage);
         merge(message, mergeBase, currentHead, branchHead, stage);
     }
 
@@ -386,11 +404,13 @@ public class Repository {
                     stage.forAddition.put(f, given.getFileSha1(f));
                     break;
                 case 3: // conflict handling
-                    String currContent = readContentsAsString(join(OBJ_DIR, curr.getFileSha1(f)));
-                    String givenContent = readContentsAsString(join(OBJ_DIR, given.getFileSha1(f)));
-                    String overWrite = "<<<<<<< HEAD\n" + currContent + "=======\n" + givenContent + ">>>>>>>";
-                    writeContents(join(CWD, f));
-                    stage.forAddition.put(f, Blob.contentSha1(overWrite));
+                    String currContent = curr.getFileSha1(f) == null ? "" :
+                            readContentsAsString(join(OBJ_DIR, curr.getFileSha1(f)));
+                    String givenContent = given.getFileSha1(f) == null ? "" :
+                            readContentsAsString(join(OBJ_DIR, given.getFileSha1(f)));
+                    String overWrite = "<<<<<<< HEAD\n" + currContent + "=======\n" + givenContent + ">>>>>>>\n";
+                    writeContents(join(CWD, f), overWrite);
+                    stage.forAddition.put(f, sha1(overWrite));
                     conflict = true;
                     break;
                 default: // do nothing
@@ -398,6 +418,7 @@ public class Repository {
             }
         }
 
+        // TODO: make a new commit
         commit(message, stage, curr, given);
         if (conflict) {
             System.out.println("Encountered a merge conflict.");

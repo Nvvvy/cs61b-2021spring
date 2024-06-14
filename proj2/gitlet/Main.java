@@ -21,6 +21,7 @@ public class Main {
      * <COMMAND> <OPERAND1> <OPERAND2> ...
      */
     public static void main(String[] args) {
+        // TODO: what if args is empty?
         if (args.length == 0) {
             quitWithMsg("Please enter a command.");
         }
@@ -40,17 +41,15 @@ public class Main {
                 validateArgs(args, 1);
                 init();
                 break;
-            case "add":
-                // handle the `add [filename]` command
+            case "add": // add [filename]
                 validateArgs(args, 2);
                 add(args[1]);
                 break;
-            case "commit":
-                // handle the `commit [message]` command
-                if (args.length == 1) {
+            case "commit": // commit [message]
+                validateArgs(args, 2);
+                if (args[1].isEmpty()) {
                     quitWithMsg("Please enter a commit message.");
                 }
-                validateArgs(args, 2);
                 naiveCommit(args[1]);
                 break;
             case "rm":
@@ -76,11 +75,15 @@ public class Main {
             case "checkout":
                 if (args.length == 2) { // checkout branch
                     checkoutBranch(args[1]);
-                } else if (args[1].equals("--")) { // checkout -- [file name]
-                    validateArgs(args, 3);
+                } else if (args.length == 3) { // checkout -- [file name]
+                    if (!args[1].equals("--")) {
+                        quitWithMsg("Incorrect operands.");
+                    }
                     checkout(args[2]);
-                } else if (args[2].equals("--")) { // checkout [commit id] -- [file name]
-                    validateArgs(args, 4);
+                } else if (args.length == 4) { // checkout [commit id] -- [file name]
+                    if (!args[2].equals("--")) {
+                        quitWithMsg("Incorrect operands.");
+                    }
                     checkout(args[3], args[1]);
                 }
                 break;

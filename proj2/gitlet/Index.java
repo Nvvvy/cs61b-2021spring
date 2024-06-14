@@ -32,7 +32,7 @@ public class Index implements Serializable {
     }
 
     public void updateGraph(String currentId, List<String> parents) {
-        List<String> edges = commitGraph.get(currentId);
+        List<String> edges = commitGraph.get(currentId) == null ? new ArrayList<>() : commitGraph.get(currentId);
         for (String id : parents) {
             if (!id.isEmpty()) {
                 edges.add(id);
