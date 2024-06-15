@@ -182,12 +182,16 @@ public class Repository {
 
     public static void rm(String file) {
         Index stage = Index.readIndex();
-        if (!stage.headBlobs.containsKey(file) && stage.forAddition.remove(file) == null) {
+        boolean staged = stage.forAddition.remove(file) != null;
+        boolean tracked = stage.headBlobs.containsKey(file);
+        if (!staged && !tracked) {
             quitWithMsg("No reason to remove the file.");
         }
 
-        stage.forRemoval.add(file);
-        restrictedDelete(file);
+        if (tracked) {
+            stage.forRemoval.add(file);
+            restrictedDelete(file);
+        }
         Index.saveIndex(stage);
     }
 
@@ -351,7 +355,7 @@ public class Repository {
         checkoutCommit(readCommit(sha1), Index.readIndex());
 
         // moves the current branch’s head to that commit node
-        writeContents(join(OBJ_DIR, activeBranch()), sha1);
+        writeContents(join(HEADS_DIR, activeBranch()), sha1);
     }
 
     /**
@@ -380,8 +384,7 @@ public class Repository {
             quitWithMsg("Current branch fast-forwarded.");
         }
 
-        String message = "Merged " + "branch" + " into" + activeBranch();
-        // TODO: check overWrite files
+        String message = "Merged " + branch + " into " + activeBranch() + ".";
         checkOverWrite(branchHead, stage);
         merge(message, mergeBase, currentHead, branchHead, stage);
     }
