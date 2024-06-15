@@ -4,7 +4,7 @@
 
 ## Classes and Data Structures
 
-### Blob
+### Class 1
 
 #### Fields
 
@@ -12,7 +12,7 @@
 2. Field 2
 
 
-### Commit
+### Class 2
 
 #### Fields
 
@@ -23,6 +23,4 @@
 ## Algorithms
 
 ## Persistence
-
-
 
